@@ -26,7 +26,6 @@ func Organize(name string, plugins ...interface{}) *EdgeRouter {
 		paths := strings.Split(path, "/")
 		er.Plugins[paths[len(paths)-1]] = plugin
 	}
-	fmt.Println("----")
 	return er
 }
 

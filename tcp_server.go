@@ -55,9 +55,7 @@ func handleTcpConn(conn *net.TCPConn, handler TcpHandler) {
 			return
 		}
 		if read_length > 0 {
-			go panicWrapping(func() {
-				handler.PacketReceived(data[0:read_length], conn)
-			})
+			handler.PacketReceived(data[0:read_length], conn)
 		}
 	}
 }
