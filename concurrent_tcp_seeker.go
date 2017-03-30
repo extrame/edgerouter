@@ -8,17 +8,17 @@ import (
 	"time"
 )
 
-type TcpSeeker struct {
+type ConcurrentTcpSeeker struct {
 	Period string
 	Port   int
 }
 
-type TcpSeekHandler interface {
+type ConcurrentTcpSeekHandler interface {
 	PacketSend() []*BytesMessage
 	PacketReceived(bts []byte, conn *net.TCPConn) int
 }
 
-func (u *TcpSeeker) Run(ctx context.Context, handler interface{}) (context.Context, error) {
+func (u *ConcurrentTcpSeeker) Run(ctx context.Context, handler interface{}) (context.Context, error) {
 	var err error
 	var d time.Duration
 	if d, err = time.ParseDuration(u.Period); err != nil {
@@ -26,14 +26,14 @@ func (u *TcpSeeker) Run(ctx context.Context, handler interface{}) (context.Conte
 	} else {
 		fmt.Printf("tcp send package by (%s) period\n", d)
 	}
-	if uh, ok := handler.(TcpSeekHandler); ok {
+	if uh, ok := handler.(ConcurrentTcpSeekHandler); ok {
 		go u.handleTcpSeek(ctx, d, uh)
 		return ctx, err
 	}
 	return ctx, errors.New("the plugin is not a udp seek handler with DatagramSend function")
 }
 
-func (u *TcpSeeker) handleTcpSeek(ctx context.Context, d time.Duration, handler TcpSeekHandler) {
+func (u *ConcurrentTcpSeeker) handleTcpSeek(ctx context.Context, d time.Duration, handler ConcurrentTcpSeekHandler) {
 	var conns = make(map[string]*net.TCPConn)
 	for {
 		select {
@@ -46,7 +46,7 @@ func (u *TcpSeeker) handleTcpSeek(ctx context.Context, d time.Duration, handler 
 				var conn *net.TCPConn
 				if addr, err = net.ResolveTCPAddr("tcp", msg.To); err == nil {
 					var ok bool
-					if conn, ok = conns[msg.To]; !ok {
+					if conn, ok = conns[addr.String()]; !ok {
 						var localPort *net.TCPAddr
 						if u.Port != 0 {
 							localPort, _ = net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", u.Port))

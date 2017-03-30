@@ -47,7 +47,11 @@ func (er *EdgeRouter) ConfigBy(filename string) error {
 			for i := 0; i < rp.NumField(); i++ {
 				fp := rp.Field(i)
 				ft := fp.Type()
-				if ft.Name() == "UdpServer" || ft.Name() == "UdpSeeker" || ft.Name() == "TcpServer" || ft.Name() == "TcpSeeker" {
+				if ft.Name() == "UdpServer" ||
+					ft.Name() == "UdpSeeker" ||
+					ft.Name() == "TcpServer" ||
+					ft.Name() == "SerialTcpSeeker" ||
+					ft.Name() == "ConcurrentTcpSeeker" {
 					val := reflect.New(ft).Interface()
 					if err := meta.PrimitiveDecode(tmp[k], val); err == nil {
 						er.servers[k] = append(er.servers[k], val.(Server))

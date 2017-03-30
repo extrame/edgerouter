@@ -9,17 +9,24 @@ import (
 	"strconv"
 
 	"github.com/extrame/edgerouter/math"
+	"github.com/golang/glog"
 )
 
 type BytesMessage struct {
 	Message []byte
 	To      string
+	For     string
 }
 
 func NewBytesMessage(v interface{}, to string) *BytesMessage {
 	msg := new(BytesMessage)
 	msg.Message = marshall(v)
 	msg.To = to
+	if dv, ok := v.(Device); ok {
+		msg.For = dv.DeviceID()
+	} else {
+		glog.Fatal("msg is not a Device interface")
+	}
 	return msg
 }
 
