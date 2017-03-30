@@ -18,11 +18,12 @@ type SerialTcpSeeker struct {
 
 type Device interface {
 	DeviceID() string
+	DeviceType() string
 }
 
 type SerialTcpSeekHandler interface {
 	PacketSend() []*BytesMessage
-	SeekReceived([]byte, string) (handled_length int, shouldStartNew bool)
+	SeekReceived([]byte, Device) (handled_length int, shouldStartNew bool)
 }
 
 func (u *SerialTcpSeeker) Run(ctx context.Context, handler interface{}) (context.Context, error) {
@@ -46,7 +47,7 @@ func (u *SerialTcpSeeker) Run(ctx context.Context, handler interface{}) (context
 type Seeking struct {
 	conn       *net.TCPConn
 	cha        chan bool
-	device     string
+	device     Device
 	to         time.Duration
 	handler    SerialTcpSeekHandler
 	toReminder *time.Timer

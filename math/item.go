@@ -19,7 +19,8 @@ const OperatorSub = "-"
 const OperatorAdd = "+"
 
 type Item interface {
-	Val([]int) int
+	Int([]int) int
+	Float([]int) float64
 	addItem(item Item)
 	BeClosure()
 	addOperator(Operator) (Item, Item)
@@ -71,26 +72,60 @@ func (i *OperationItem) addOperator(op Operator) (Item, Item) {
 	return i, i
 }
 
-func (i *OperationItem) Val(vars []int) int {
+func (i *OperationItem) Int(vars []int) int {
 	switch i.Operator {
 	case OperatorAdd:
-		return i.FirstItem.Val(vars) + i.SecondItem.Val(vars)
+		return i.FirstItem.Int(vars) + i.SecondItem.Int(vars)
 	case OperatorDiv:
-		return i.FirstItem.Val(vars) / i.SecondItem.Val(vars)
+		return i.FirstItem.Int(vars) / i.SecondItem.Int(vars)
 	case OperatorMul:
-		return i.FirstItem.Val(vars) * i.SecondItem.Val(vars)
+		return i.FirstItem.Int(vars) * i.SecondItem.Int(vars)
 	case OperatorSub:
-		return i.FirstItem.Val(vars) - i.SecondItem.Val(vars)
+		return i.FirstItem.Int(vars) - i.SecondItem.Int(vars)
+	}
+	return 0
+}
+
+func (i *OperationItem) Float(vars []int) float64 {
+	switch i.Operator {
+	case OperatorAdd:
+		return i.FirstItem.Float(vars) + i.SecondItem.Float(vars)
+	case OperatorDiv:
+		return i.FirstItem.Float(vars) / i.SecondItem.Float(vars)
+	case OperatorMul:
+		return i.FirstItem.Float(vars) * i.SecondItem.Float(vars)
+	case OperatorSub:
+		return i.FirstItem.Float(vars) - i.SecondItem.Float(vars)
 	}
 	return 0
 }
 
 type NumberItem struct {
-	Number int
+	Number interface{}
 }
 
-func (n *NumberItem) Val(vars []int) int {
-	return n.Number
+func (n *NumberItem) Int(vars []int) int {
+	switch tn := n.Number.(type) {
+	case int:
+		return tn
+	case float32:
+		return int(tn)
+	case float64:
+		return int(tn)
+	}
+	return 0
+}
+
+func (n *NumberItem) Float(vars []int) float64 {
+	switch tn := n.Number.(type) {
+	case int:
+		return float64(tn)
+	case float32:
+		return float64(tn)
+	case float64:
+		return tn
+	}
+	return 0
 }
 
 func (n *NumberItem) String() string {
@@ -114,8 +149,12 @@ type VarItem struct {
 	Serial int
 }
 
-func (v *VarItem) Val(vars []int) int {
+func (v *VarItem) Int(vars []int) int {
 	return vars[v.Serial-1]
+}
+
+func (v *VarItem) Float(vars []int) float64 {
+	return float64(vars[v.Serial-1])
 }
 
 func (v *VarItem) addItem(item Item) {

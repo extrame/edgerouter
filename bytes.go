@@ -9,24 +9,19 @@ import (
 	"strconv"
 
 	"github.com/extrame/edgerouter/math"
-	"github.com/golang/glog"
 )
 
 type BytesMessage struct {
 	Message []byte
 	To      string
-	For     string
+	For     Device
 }
 
-func NewBytesMessage(v interface{}, to string) *BytesMessage {
+func NewBytesMessage(v interface{}, to string, d Device) *BytesMessage {
 	msg := new(BytesMessage)
-	msg.Message = marshall(v)
+	msg.Message = marshall(v, d)
 	msg.To = to
-	if dv, ok := v.(Device); ok {
-		msg.For = dv.DeviceID()
-	} else {
-		glog.Fatal("msg is not a Device interface")
-	}
+	msg.For = d
 	return msg
 }
 
@@ -63,7 +58,12 @@ func Unmarsall(bts []byte, v interface{}) error {
 					for k, v := range btsSlice {
 						intSlice[k] = int(v)
 					}
-					fv.SetInt(int64(math.Parse(tokens).Val(intSlice)))
+					switch ft.Type.Kind() {
+					case reflect.Int:
+						fv.SetInt(int64(math.Parse(tokens).Int(intSlice)))
+					case reflect.Float32, reflect.Float64:
+						fv.SetFloat(math.Parse(tokens).Float(intSlice))
+					}
 					continue
 				default:
 					var i int64
@@ -89,7 +89,7 @@ func Unmarsall(bts []byte, v interface{}) error {
 	return nil
 }
 
-func marshall(v interface{}) []byte {
+func marshall(v interface{}, d Device) []byte {
 	var bts = make([]byte, 0)
 	rp := reflect.ValueOf(v)
 	if rp.Type().Kind() == reflect.Ptr {
@@ -116,6 +116,8 @@ func marshall(v interface{}) []byte {
 						case reflect.String:
 							val = fv.Slice(0, length).Interface()
 						}
+					case "deviceid":
+						bts = append(bts, []byte(d.DeviceID())...)
 					default:
 						if i, err := strconv.ParseInt(kv[0], 0, 8); err == nil {
 							bts = append(bts, byte(i))
