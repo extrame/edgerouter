@@ -45,18 +45,19 @@ func (u *SerialTcpSeeker) Run(ctx context.Context, handler interface{}) (context
 }
 
 type Seeking struct {
-	conn       *net.TCPConn
-	cha        chan bool
-	device     Device
-	to         time.Duration
-	handler    SerialTcpSeekHandler
-	toReminder *time.Timer
+	conn          *net.TCPConn
+	chanAvailable chan bool
+	chanFinish    chan bool
+	device        Device
+	to            time.Duration
+	handler       SerialTcpSeekHandler
+	toReminder    *time.Timer
 }
 
 func (s *Seeking) PacketReceived(bts []byte, conn *net.TCPConn) int {
 	_, shouldStartNew := s.handler.SeekReceived(bts, s.device)
 	if shouldStartNew {
-		s.cha <- true
+		s.chanFinish <- true
 	}
 	return len(bts)
 }
@@ -81,26 +82,28 @@ func (u *SerialTcpSeeker) handleTcpSeek(ctx context.Context, d, to time.Duration
 						var conn *net.TCPConn
 						conn, err = net.DialTCP("tcp", localPort, addr)
 						seeking = &Seeking{
-							conn:    conn,
-							cha:     make(chan bool, 1),
-							to:      to,
-							handler: handler,
+							conn:          conn,
+							chanAvailable: make(chan bool, 1),
+							chanFinish:    make(chan bool),
+							to:            to,
+							handler:       handler,
 						}
 						go handleTcpConn(conn, seeking)
 						seekings[addr.String()] = seeking
-						seeking.cha <- true
+						seeking.chanAvailable <- true
 					}
-					<-seeking.cha
-					if seeking.toReminder != nil {
-						seeking.toReminder.Stop()
-					}
+					<-seeking.chanAvailable
 					seeking.device = msg.For
 					glog.Info("start for", msg.For)
 					_, err = seeking.conn.Write(msg.Message)
-					seeking.toReminder = time.AfterFunc(seeking.to, func() {
+					select {
+					case <-time.After(seeking.to):
 						glog.Infoln("timeout")
-						seeking.cha <- false
-					})
+						seeking.chanAvailable <- false
+					case <-seeking.chanFinish:
+						glog.Infoln("finished")
+						seeking.chanAvailable <- true
+					}
 				}
 				if err != nil {
 					fmt.Println(err)
