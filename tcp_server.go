@@ -1,66 +1,74 @@
 package edgerouter
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
+
+	"github.com/golang/glog"
 )
 
 type TcpServer struct {
-	Port     int
-	listener *net.TCPListener
+	ctl   Controller
+	Port  int
+	conns map[string]*net.TCPConn
 }
 
-type TcpHandler interface {
-	PacketReceived(bts []byte, conn *net.TCPConn) int
+func (s *TcpServer) Init() (err error) {
+	s.conns = make(map[string]*net.TCPConn)
+
+	return err
 }
 
-func (u *TcpServer) Run(ctx context.Context, handler interface{}) (context.Context, error) {
-	fmt.Println("run tcp server")
-	if uh, ok := handler.(TcpHandler); ok {
-		laddr, err := net.ResolveTCPAddr("tcp", ":"+strconv.Itoa(u.Port))
-		if err == nil {
-			fmt.Println("listening on " + strconv.Itoa(u.Port))
-			u.listener, err = net.ListenTCP("tcp", laddr)
-			ctx := context.WithValue(ctx, "tcp-listener", u.listener)
-			if err != nil {
-				return nil, err
-			}
-			go u.listenTcp(ctx, uh)
-			return ctx, nil
+func (c *TcpServer) PacketReceived(bts []byte, conn *net.TCPConn) int {
+	return c.ctl.OnReceived(bts, conn)
+}
+
+func (c *TcpServer) SetController(ctrl Controller) {
+	c.ctl = ctrl
+}
+
+func (c *TcpServer) Connect(to string) error {
+	if addr, err := net.ResolveIPAddr("ip", to); err == nil {
+		if _, ok := c.conns[addr.String()]; !ok {
+			return errors.New("no such tcp client for " + addr.String())
 		}
-		return nil, err
+		return nil
+	} else {
+		return err
 	}
-	return nil, errors.New("the plugin is not a Tcp handler with DatagramReceived function")
 }
 
-func (u *TcpServer) listenTcp(ctx context.Context, handler TcpHandler) {
-	for {
-		if conn, err := u.listener.AcceptTCP(); err != nil {
-			go handleTcpConn(conn, handler)
+func (c *TcpServer) Send(msg *BytesMessage) (err error) {
+	var addr *net.IPAddr
+	if addr, err = net.ResolveIPAddr("ip", msg.To); err == nil {
+		if conn, ok := c.conns[addr.IP.String()]; ok {
+			_, err = conn.Write(msg.Message)
 		} else {
-			fmt.Println(err)
+			err = errors.New("no such connection for " + addr.IP.String())
 		}
 	}
+
+	return err
 }
 
-func handleTcpConn(conn *net.TCPConn, handler TcpHandler) {
+func (c *TcpServer) String() string {
+	return fmt.Sprintf("tcp server(%p) listened on (:%d)", c, c.Port)
+}
+
+func (s *TcpServer) Run() {
+	var addr *net.TCPAddr
+	var err error
+	var listener *net.TCPListener
+	if addr, err = net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", s.Port)); err == nil {
+		listener, err = net.ListenTCP("tcp", addr)
+	}
 	for {
-		data := make([]byte, 512)
-		read_length, err := conn.Read(data)
-		if err != nil { // EOF, or worse
-			fmt.Println(err)
-			return
-		}
-		if read_length > 0 {
-			handler.PacketReceived(data[0:read_length], conn)
+		if conn, err := listener.AcceptTCP(); err == nil {
+			addr := conn.RemoteAddr().(*net.TCPAddr)
+			glog.Infof("got connection from (%s)", addr)
+			s.conns[addr.IP.String()] = conn
+			go handleTcpConn(conn, s)
 		}
 	}
 }
-
-// func (u *TcpServer) DatagramReceived(bts []byte, addr *net.TcpAddr) int {
-// 	panic("you should overwrite DatagramReceived function for Tcp server")
-// 	return len(bts)
-// }
