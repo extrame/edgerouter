@@ -44,18 +44,38 @@ func (c *TcpClient) Connect(to string) error {
 	}
 }
 
-func (c *TcpClient) Send(msg *BytesMessage) (err error) {
+var NoSuchConnection = errors.New("no such connection")
+
+func (c *TcpClient) GetConn(to string) (conn net.Conn, err error) {
 	var addr *net.TCPAddr
-	if addr, err = net.ResolveTCPAddr("tcp", msg.To); err == nil {
-		if conn, ok := c.conns[addr.String()]; ok {
-			_, err = conn.Write(msg.Message)
+	if to == "any" {
+		for _, conn := range c.conns {
+			return conn, nil
+		}
+		return nil, NoSuchConnection
+	}
+	if addr, err = net.ResolveTCPAddr("tcp", to); err == nil {
+		var ok bool
+		if conn, ok = c.conns[addr.String()]; ok {
 		} else {
-			err = errors.New("no such connection")
+			err = NoSuchConnection
 		}
 	}
-
-	return err
+	return
 }
+
+// func (c *TcpClient) Send(msg *BytesMessage, conn net.Conn) (err error) {
+// 	var addr *net.TCPAddr
+// 	if addr, err = net.ResolveTCPAddr("tcp", msg.To); err == nil {
+// 		if conn, ok := c.conns[addr.String()]; ok {
+// 			_, err = conn.Write(msg.Message)
+// 		} else {
+// 			err = errors.New("no such connection")
+// 		}
+// 	}
+
+// 	return err
+// }
 
 func (c *TcpClient) String() string {
 	return fmt.Sprintf("tcp client(%p)", c)

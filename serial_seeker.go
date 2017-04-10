@@ -62,13 +62,18 @@ func (s *SerialSeeker) Run() {
 }
 
 func (s *SerialSeeker) seek(msg *BytesMessage) (err error) {
+	var conn net.Conn
 	if err = s.trans.Connect(msg.To); err != nil {
 		goto errHandling
 	}
 	<-s.chanAvailable
 	s.waitedDevice = msg.For
 	glog.Info("start for", msg.For)
-	if err = s.trans.Send(msg); err != nil {
+	if conn, err = s.trans.GetConn(msg.To); err != nil {
+		goto errHandling
+	}
+	if _, err = conn.Write(msg.Message); err != nil {
+		s.trans.DeleteConn(conn)
 		goto errHandling
 	}
 	select {
