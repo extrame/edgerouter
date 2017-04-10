@@ -64,6 +64,14 @@ func (c *TcpClient) GetConn(to string) (conn net.Conn, err error) {
 	return
 }
 
+func (c *TcpClient) DeleteConn(toDel net.Conn) {
+	for key, conn := range c.conns {
+		if conn == toDel {
+			delete(c.conns, key)
+		}
+	}
+}
+
 // func (c *TcpClient) Send(msg *BytesMessage, conn net.Conn) (err error) {
 // 	var addr *net.TCPAddr
 // 	if addr, err = net.ResolveTCPAddr("tcp", msg.To); err == nil {

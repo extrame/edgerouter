@@ -39,18 +39,44 @@ func (c *TcpServer) Connect(to string) error {
 	}
 }
 
-func (c *TcpServer) Send(msg *BytesMessage) (err error) {
-	var addr *net.IPAddr
-	if addr, err = net.ResolveIPAddr("ip", msg.To); err == nil {
-		if conn, ok := c.conns[addr.IP.String()]; ok {
-			_, err = conn.Write(msg.Message)
+func (c *TcpServer) GetConn(to string) (conn net.Conn, err error) {
+	var addr *net.TCPAddr
+	if to == "any" {
+		for _, conn := range c.conns {
+			return conn, nil
+		}
+		return nil, NoSuchConnection
+	}
+	if addr, err = net.ResolveTCPAddr("tcp", to); err == nil {
+		var ok bool
+		if conn, ok = c.conns[addr.String()]; ok {
 		} else {
-			err = errors.New("no such connection for " + addr.IP.String())
+			err = NoSuchConnection
 		}
 	}
-
-	return err
+	return
 }
+
+func (c *TcpServer) DeleteConn(toDel net.Conn) {
+	for key, conn := range c.conns {
+		if conn == toDel {
+			delete(c.conns, key)
+		}
+	}
+}
+
+// func (c *TcpServer) Send(msg *BytesMessage) (err error) {
+// 	var addr *net.IPAddr
+// 	if addr, err = net.ResolveIPAddr("ip", msg.To); err == nil {
+// 		if conn, ok := c.conns[addr.IP.String()]; ok {
+// 			_, err = conn.Write(msg.Message)
+// 		} else {
+// 			err = errors.New("no such connection for " + addr.IP.String())
+// 		}
+// 	}
+
+// 	return err
+// }
 
 func (c *TcpServer) String() string {
 	return fmt.Sprintf("tcp server(%p) listened on (:%d)", c, c.Port)
