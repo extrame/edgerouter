@@ -64,6 +64,11 @@ func (c *TcpClient) GetConn(to string) (conn net.Conn, err error) {
 	return
 }
 
+func (c *TcpClient) Close(toDel *net.TCPConn) {
+	c.DeleteConn(toDel)
+}
+
+//TODO client should reconnect to server
 func (c *TcpClient) DeleteConn(toDel net.Conn) {
 	for key, conn := range c.conns {
 		if conn == toDel {

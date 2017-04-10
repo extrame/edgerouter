@@ -58,11 +58,16 @@ func (c *TcpServer) GetConn(to string) (conn net.Conn, err error) {
 }
 
 func (c *TcpServer) DeleteConn(toDel net.Conn) {
+	toDel.Close()
 	for key, conn := range c.conns {
 		if conn == toDel {
 			delete(c.conns, key)
 		}
 	}
+}
+
+func (c *TcpServer) Close(toDel *net.TCPConn) {
+	c.DeleteConn(toDel)
 }
 
 // func (c *TcpServer) Send(msg *BytesMessage) (err error) {
