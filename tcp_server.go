@@ -40,14 +40,14 @@ func (c *TcpServer) Connect(to string) error {
 }
 
 func (c *TcpServer) GetConn(to string) (conn net.Conn, err error) {
-	var addr *net.TCPAddr
+	var addr *net.IPAddr
 	if to == "any" {
 		for _, conn := range c.conns {
 			return conn, nil
 		}
 		return nil, NoSuchConnection
 	}
-	if addr, err = net.ResolveTCPAddr("tcp", to); err == nil {
+	if addr, err = net.ResolveIPAddr("ip", to); err == nil {
 		var ok bool
 		if conn, ok = c.conns[addr.String()]; ok {
 		} else {

@@ -27,6 +27,7 @@ type SerialSeekHandler interface {
 }
 
 func (s *SerialSeeker) Init() (err error) {
+	glog.Infoln("init serial seeker")
 	s.chanFinish = make(chan bool)
 	s.chanAvailable = make(chan bool, 1)
 	s.chanAvailable <- true
@@ -52,8 +53,8 @@ func (s *SerialSeeker) Run() {
 	for {
 		select {
 		case <-time.After(s.duration):
-			glog.Infoln("periodly seeking")
 			msgs := s.handler.PacketSend()
+			glog.Infof("periodly seeking for %d messages", len(msgs))
 			for _, msg := range msgs {
 				go s.seek(msg)
 			}
@@ -68,15 +69,21 @@ func (s *SerialSeeker) seek(msg *BytesMessage) (err error) {
 			goto errHandling
 		}
 	}
+	glog.Info("wait for available chan")
 	<-s.chanAvailable
+	glog.Info("send for", msg.For)
 	s.waitedDevice = msg.For
-	glog.Info("start for", msg.For)
 	if conn, err = s.trans.GetConn(msg.To); err != nil {
+		s.chanAvailable <- false
 		goto errHandling
+	} else {
+		glog.Info("in conn", conn)
 	}
 	if _, err = conn.Write(msg.Message); err != nil {
 		s.trans.DeleteConn(conn)
 		goto errHandling
+	} else {
+		glog.Infoln("...ok!")
 	}
 	select {
 	case <-time.After(s.to):
