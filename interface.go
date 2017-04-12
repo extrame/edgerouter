@@ -8,7 +8,7 @@ type Transport interface {
 	Connect(string) error
 	// Send(*BytesMessage) error
 	SetController(Controller)
-	GetConn(addr string) (net.Conn, error)
+	GetConn(addr string, unexceptedConns []net.Conn) (net.Conn, error)
 	DeleteConn(net.Conn)
 }
 

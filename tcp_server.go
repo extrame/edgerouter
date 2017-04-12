@@ -39,10 +39,16 @@ func (c *TcpServer) Connect(to string) error {
 	}
 }
 
-func (c *TcpServer) GetConn(to string) (conn net.Conn, err error) {
+func (c *TcpServer) GetConn(to string, unexceptedConns []net.Conn) (conn net.Conn, err error) {
 	var addr *net.IPAddr
 	if to == "any" {
+	OUTER:
 		for _, conn := range c.conns {
+			for _, unexcepted := range unexceptedConns {
+				if conn == unexcepted {
+					continue OUTER
+				}
+			}
 			return conn, nil
 		}
 		return nil, NoSuchConnection

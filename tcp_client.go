@@ -46,10 +46,16 @@ func (c *TcpClient) Connect(to string) error {
 
 var NoSuchConnection = errors.New("no such connection")
 
-func (c *TcpClient) GetConn(to string) (conn net.Conn, err error) {
+func (c *TcpClient) GetConn(to string, unexceptedConns []net.Conn) (conn net.Conn, err error) {
 	var addr *net.TCPAddr
 	if to == "any" {
+	OUTER:
 		for _, conn := range c.conns {
+			for _, unexcepted := range unexceptedConns {
+				if conn == unexcepted {
+					continue OUTER
+				}
+			}
 			return conn, nil
 		}
 		return nil, NoSuchConnection
